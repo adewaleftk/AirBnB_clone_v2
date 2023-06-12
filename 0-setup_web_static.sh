@@ -1,66 +1,22 @@
 #!/usr/bin/env bash
-# This script sets up web servers for the deployment of web_static.
+# Set up server file system for deployment
 
-# Install Nginx if not already installed
-install_nginx() {
-    if ! command -v nginx &> /dev/null; then
-        apt-get update
-        apt-get install -y nginx
-    fi
-}
+# install nginx
+sudo apt-get -y update
+sudo apt-get -y install nginx
+sudo service nginx start
 
-# Create necessary folders if they don't exist
-create_folders() {
-    local folders=("/data" "/data/web_static" "/data/web_static/releases" "/data/web_static/shared" "/data/web_static/releases/test")
-    for folder in "${folders[@]}"; do
-        mkdir -p "$folder"
-    done
-}
+# configure file system
+sudo mkdir -p /data/web_static/shared/
+sudo mkdir -p /data/web_static/releases/test/
+echo "Holberton School" | sudo tee /data/web_static/releases/test/index.html > /dev/null
+sudo ln -sf /data/web_static/releases/test/ /data/web_static/current
 
-# Create a fake HTML file
-create_fake_html() {
-    local content="<html><body>Test HTML file</body></html>"
-    echo "$content" > "/data/web_static/releases/test/index.html"
-}
+# set permissions
+sudo chown -R ubuntu:ubuntu /data/
 
-# Create or recreate symbolic link
-create_symbolic_link() {
-    local current_dir="/data/web_static/current"
-    if [ -L "$current_dir" ]; then
-        rm "$current_dir"
-    fi
-    ln -s "/data/web_static/releases/test" "$current_dir"
-}
+# configure nginx
+sudo sed -i '44i \\n\tlocation /hbnb_static {\n\t\talias /data/web_static/current/;\n\t}' /etc/nginx/sites-available/default
 
-# Set ownership recursively
-set_ownership() {
-    chown -R ubuntu:ubuntu "/data"
-}
-
-# Update Nginx configuration
-update_nginx_config() {
-    local config_file="/etc/nginx/sites-available/default"
-    local location_block="location /hbnb_static {\n    alias /data/web_static/current/;\n}\n"
-    sed -i '/location \/hbnb_static {/,/}/d' "$config_file"
-    sed -i "/server {/a $location_block" "$config_file"
-}
-
-# Restart Nginx
-restart_nginx() {
-    service nginx restart
-}
-
-# Main function
-main() {
-    install_nginx
-    create_folders
-    create_fake_html
-    create_symbolic_link
-    set_ownership
-    update_nginx_config
-    restart_nginx
-}
-
-# Run the main function
-main
-
+# restart web server
+sudo service nginx restart
